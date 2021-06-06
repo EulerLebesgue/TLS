@@ -113,6 +113,9 @@ np.randam.rand(input_layer_size,hidden_layer_size) / np.sqrt(input_layer_size)* 
 勾配の緩やかな斜面に対して、最適値に近づける。
 学習率が徐々に小さくなるので、鞍点問題を引き起こすことがある。
 ### RMSProp
+AdaGrantの式に回の誤差の二乗と、前回までの勾配情報をどの程度使用するかを変える。
+局所的最適解にはならず、大域的最適解となる。
+ハイパーパラメータの調整が必要な場合が少ない。
 ### Adam
 
 ## Section3 過学習
