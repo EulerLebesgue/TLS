@@ -9,11 +9,22 @@
 ### 構文木
 単語同士のつながり(特徴量)を学習させ、最後1つの特徴量を学習する。
 ### BPTT(RNNにおける逆伝搬)
-
+中間層から出力層の重みとバイアスの更新には時間的なつながりを考慮しなくてよい。これらはすでに入力層から中間層への伝達で反映されているので。  
+したがって、中間層から出力層への重みとバイアスの更新は総和を計算する必要がない。
 ## Section2 LSTM
+### CEC
+### 入力ゲートと出力ゲート
+### 忘却ゲート
+### 覗き穴結合
 ## Section3 GRU
 ## Section4 双方向RNN
 ## Section5 Seq2Seq
+### Encode RNN
+### Decode RNN
+### HRED
+### VHRED
+### VAE
+
 ## Section6 Word2Vec
 ## Section7 Attention Machinism
 
