@@ -57,11 +57,18 @@ concateneteはaxisの指定で結合方法はが異なる。axis=0は一次元�
 2. 生成確率にもとづいて、tokenをランダムに選択。(Sampling)
 3. 選ばれたtokenをEmbeddingしてDecoderRNNへの次の入力とする。(Embedding)
 4. 上記処理を繰り返し、得られたtokenを文字列に変換する。(Detokenize)
-### 確認テスト
-### HRED
-### VHRED
-### VAE
 
+### HRED
+seq2seq課題：１問１答しかできない。問いに対して文脈も何もなく、ただ応答が行われ続ける。  
+文脈そのものをtokenのようにつながりがあるものとして扱う。RNNの隠れ層をさらにRNNで接続する。  
+seq2seq + Context RNN  
+Context RNN:Encoderのまとめた各文章の系列をまとめて、これまでの会話コンテキスト全体を表すベクトルに変換する構造。  
+HREDの課題：会話の流れの多様性がない。情報量に乏しい答えを返す。相槌など
+### VHRED
+VAEの潜在変数の概念を導入
+### VAE
+#### オートエンコーダー
+教師なし学習の一つ。入力から同一の出力を得るモデル。
 ## Section6 Word2Vec
 
 ## Section7 Attention Machinism
