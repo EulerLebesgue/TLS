@@ -43,20 +43,20 @@ concateneteはaxisの指定で結合方法はが異なる。axis=0は一次元�
 1つ目のネットワークでは入力で、文脈の意味を保持する。(Encoder)2つ目のネットワークでは文脈の意味から新しい文章を作成する。(Decoder)
 ### Encode RNN
 インプットしたテキストデータを単語等のトークンに区切って渡す。通常記憶させる単語を限定する。3～5万語程度  
--1 単語ごとにIDを振る(Taking)
--2 IDに対してone-hotベクトルで表現する。(列数が単語数の行列)
--3 IDから、そのトークンを表す分散表現ベクトルに変換(Embedding)(数百程度)。落とし方はディープラーニングで単語の意味を類似性を抽出することで実現する
--4 得られたベクトルを順番にRNNに入力していく(Encoder RNN)
+1. 単語ごとにIDを振る(Taking)
+2. IDに対してone-hotベクトルで表現する。(列数が単語数の行列)
+3. IDから、そのトークンを表す分散表現ベクトルに変換(Embedding)(数百程度)。落とし方はディープラーニングで単語の意味を類似性を抽出することで実現する
+4. 得られたベクトルを順番にRNNに入力していく(Encoder RNN)
 
 - MLM Masked Language Model：文脈から1単語を隠し、周辺単語から隠した単語を自力で予測させる。教師なし学習。
 
 ### Decode RNN
 システムがアウトプットデータを単語等のトークンごとに生成する構造。  
 処理をEncodeと逆。Embedding表現から近い単語を予想する。
--1 Encoder RNNのfinal stateから各tokenの生成確率を出力する。finalstateをDecoderRNNのinitialStateととして、Embeddingを入力する。(DecoderRNN)
--2 生成確率にもとづいて、tokenをランダムに選択。(Sampling)
--3 選ばれたtokenをEmbeddingしてDecoderRNNへの次の入力とする。(Embedding)
--4 上記処理を繰り返し、得られたtokenを文字列に変換する。(Detokenize)
+1. Encoder RNNのfinal stateから各tokenの生成確率を出力する。finalstateをDecoderRNNのinitialStateととして、Embeddingを入力する。(DecoderRNN)
+2. 生成確率にもとづいて、tokenをランダムに選択。(Sampling)
+3. 選ばれたtokenをEmbeddingしてDecoderRNNへの次の入力とする。(Embedding)
+4. 上記処理を繰り返し、得られたtokenを文字列に変換する。(Detokenize)
 ### 確認テスト
 ### HRED
 ### VHRED
