@@ -211,6 +211,15 @@ bit数の拡張は、指数部と基数部を同じ割合で拡張するわけ�
 | MS COCO18 | 80 | 123,287 | 7.3 | 物体個々 |
 | OICOD18 | 500 | 1,743,042 | 7.0 | 物体個々 |
 Box/画像(１枚当たりの物体数)が小さいとアイコン的で日常感とはかけ離れやすい
+### 分類問題における評価指標の復讐
+| 真値\予測 | Positive | Negative |
+| Positive | TruePositive(TP) | False Negative(FN) |
+| Negative | False Positive(FP) | True Negative(TP) |
+
+- Precision(予測がPositiveに対して、真値がPositiveなものの割合) = TP / (TP + FP)
+- Recall(真値がPositiveに対して、予測がPositiveなものの割合) = TP / (TP + FN)
+- confidenceの閾値(Threchold)を変化させるとPredictionも変化する。
+- 物体検知においてThresholdにより出力のサイズが変わってくる。(Confusion Matrixのサイズが変わる)
 ## 応用技術
 ### MobileNet
 - 画像認識ネットワーク
