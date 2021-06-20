@@ -198,7 +198,7 @@ bit数の拡張は、指数部と基数部を同じ割合で拡張するわけ�
 ## Section4 Transformer
 ## Section5 物体検知・セグメンテーション
 ### 物体認識タスク
-タスクと出力内容の関係は下記。いままでの分類は画像の有無のみ、それ以降では物体位置および個々に興味を持つ。
+タスクと出力内容の関係は下記。いままでの分類は画像の有無のみ、それ以降では物体位置および個々に興味を持つ。  
 - 分類(Classification)：画像に対してクラスラベル
 - 物体検知(Object Detection)：Bounding Box(bbox/BB)
 - 意味領域分割(Semantic Segmentation)：各ピクセルに対し単一のクラスラベル（背景と物体を区別）
@@ -211,15 +211,32 @@ bit数の拡張は、指数部と基数部を同じ割合で拡張するわけ�
 | MS COCO18 | 80 | 123,287 | 7.3 | 物体個々 |
 | OICOD18 | 500 | 1,743,042 | 7.0 | 物体個々 |
 Box/画像(１枚当たりの物体数)が小さいとアイコン的で日常感とはかけ離れやすい
-### 分類問題における評価指標の復讐
+### 分類問題における評価指標の復習
 | 真値\予測 | Positive | Negative |
 | Positive | TruePositive(TP) | False Negative(FN) |
 | Negative | False Positive(FP) | True Negative(TP) |
-
-- Precision(予測がPositiveに対して、真値がPositiveなものの割合) = TP / (TP + FP)
-- Recall(真値がPositiveに対して、予測がPositiveなものの割合) = TP / (TP + FN)
+- Precision(予測がPositiveに対して、真値がPositiveなものの割合。適合率) = TP / (TP + FP)
+- Recall(真値がPositiveに対して、予測がPositiveなものの割合。再現率) = TP / (TP + FN)
 - confidenceの閾値(Threchold)を変化させるとPredictionも変化する。
+- 後述するIoUについても閾値を準備する。
 - 物体検知においてThresholdにより出力のサイズが変わってくる。(Confusion Matrixのサイズが変わる)
+- IoU(Intersection over Union)=(Area of Overlap) / (Area of Union)　物体位置と物体予測位置の和集合における物体位置と物体予測位置の共通部分の比率
+-- Confusion Matrixによる表現　IoU = TP / (TP + FP + FN)　Jaccard係数ともいう
+- AP(Average Precision) PR曲線とR軸で囲まれた面積。クラスラベルごとに計算
+- mAP：すべてのクラスにおけるAPの平均値
+- PR曲線:PredictをRecallの関数として記述。PredictもRecallもconfidenceの関数として捉える。
+- mAP_(coco):IoUの閾値を0.5から0.95まで0.05刻みでAPを計算。それによりmAPの算術平均を計算したもの
+### 物体検知のフレームワーク
+#### 2段階検出器
+- RCNN SPPNet FPN MaskRCNNなど
+- 候補領域とクラス推定を別々に行う。位置を切り出して分類器に取り込む
+- メリット：精度が高い
+- デメリット：計算量が多く、推論が遅い
+#### 1段階検出器
+- DetectorNet YOLO SSD など
+- 候補領域とクラス推定を同時に行う。
+- メリット：計算量が小さく推論が早い
+- デメリット：精度が低い
 ## 応用技術
 ### MobileNet
 - 画像認識ネットワーク
