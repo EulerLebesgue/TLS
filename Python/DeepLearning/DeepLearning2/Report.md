@@ -235,6 +235,7 @@ QとKのドット積をとってきたあと、Mask(パッドなどの無視し�
 Box/画像(１枚当たりの物体数)が小さいとアイコン的で日常感とはかけ離れやすい
 ### 分類問題における評価指標の復習
 | 真値\予測 | Positive | Negative |
+| --- | --- | --- |
 | Positive | TruePositive(TP) | False Negative(FN) |
 | Negative | False Positive(FP) | True Negative(TP) |
 - Precision(予測がPositiveに対して、真値がPositiveなものの割合。適合率) = TP / (TP + FP)
