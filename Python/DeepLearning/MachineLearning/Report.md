@@ -168,16 +168,120 @@ confusion_matrix1=confusion_matrix(testlabel1, predictor_eval1)
 元のデータの分散は、すべての主成分の総和に等しい。
 - 寄与率：第ｋ主成分の分散が主成分の総分散にどれほどの割合を占めるのかを表したもの
 - 累積寄与率：第1～第ｋ主成分の分散が主成分の総分散にどれほどの割合を占めるのかを表したもの
+### ハンズオン
+30次元のままロジスティック回帰を行う
+```
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+# ロジスティック回帰で学習
+logistic = LogisticRegressionCV(cv=10, random_state=0)
+logistic.fit(X_train_scaled, y_train)
+# 検証
+print('Train score: {:.3f}'.format(logistic.score(X_train_scaled, y_train)))
+print('Test score: {:.3f}'.format(logistic.score(X_test_scaled, y_test)))
+print('Confustion matrix:\n{}'.format(confusion_matrix(y_true=y_test, y_pred=logistic.predict(X_test_scaled))))
+```
+Train score: 0.988
+Test score: 0.972
+Confustion matrix:
+[89  1]
+[ 3 50]]
 
+主成分分析。n_componentsはcomponentsの数
+```
+pca = PCA(n_components=30)
+pca.fit(X_train_scaled)
+```
+
+データを2次元に圧縮。
+```
+pca = PCA(n_components=2)
+X_train_pca = pca.fit_transform(X_train_scaled)
+X_test_pca = pca.fit_transform(X_test_scaled)
+```
+ここで、二次元に圧縮したデータで学習してみる。
+```
+logistic1 = LogisticRegressionCV(cv=10, random_state=0)
+logistic1.fit(X_train_pca, y_train)
+
+# 検証
+print('Train score: {:.3f}'.format(logistic1.score(X_train_pca, y_train)))
+print('Test score: {:.3f}'.format(logistic1.score(X_test_pca, y_test)))
+print('Confustion matrix:\n{}'.format(confusion_matrix(y_true=y_test, y_pred=logistic1.predict(X_test_pca))))
+```
+悪くない。
+Train score: 0.965
+Test score: 0.916
+Confustion matrix:
+[[83  7]
+ [ 5 48]]
 
 ## Chapter5 アルゴリズム
 ### kNN法
 教師あり学習。分類のタスク。ある点から近い順にk個の点を探し、そのk個の点が属している集合のうち最も多いものを割り当てる。(多数決)
+### 実装部
+sklearnは相変わらず一瞬で終わる
+```
+from sklearn.neighbors import KNeighborsClassifier
+knc = KNeighborsClassifier(n_neighbors=n_neighbors).fit(X_train, ys_train)
+```
+numpyも単純
+```
+def knc_predict(n_neighbors, x_train, y_train, X_test):
+    y_pred = np.empty(len(X_test), dtype=y_train.dtype)
+    for i, x in enumerate(X_test):
+        distances = distance(x, X_train)
+### argsortで降順に並べて、近傍で指定した箇所まで取り出す
+        nearest_index = distances.argsort()[:n_neighbors]
+        mode, _ = stats.mode(y_train[nearest_index])
+        y_pred[i] = mode
+    return y_pred
+```
 ### k-means法
 教師なし学習。クラスタリング。分類したいクラスと初期値(クラスタの中心)を決めて、近い中心のクラスを割り当てる。その後中心を再計算するという手続きを繰り返す手法。
 - 初期値(中心点)の位置により結果が大きく変わる。その解消のためk-means++法というのがある。
 上記2つはどちらの手法も距離計算が入るので、計算コストが高い。
+### 実装部分
+sklearnだと一瞬で終わる
+```
+from sklearn.cluster import KMeans
+model = KMeans(n_clusters=5)
+labels = model.fit_predict(X)
+```
 
+numpyによる実装
+```
+# まず距離を定義。
+def distance(x1, x2):
+    return np.sum((x1 - x2)**2, axis=1)
+
+#クラスター数と最大繰り返し回数を決める
+n_clusters = 3
+iter_max = 100
+
+# 各クラスタ中心をランダムに初期化
+centers = X_train[np.random.choice(len(X_train), n_clusters, replace=False)]
+
+for _ in range(iter_max):
+# 更新後の中心と比較するために更新前の中心を保存
+    prev_centers = np.copy(centers)
+    D = np.zeros((len(X_train), n_clusters))
+    # 各データ点に対して、各クラスタ中心との距離を計算
+    for i, x in enumerate(X_train):
+        D[i] = distance(x, centers)
+    # 各データ点に、最も距離が近いクラスタを割り当て。横方向のargminでindexを返す
+    
+    cluster_index = np.argmin(D, axis=1)
+    # 各クラスタの中心を計算
+    for k in range(n_clusters):
+    ### 真偽値を計算
+        index_k = cluster_index == k
+        centers[k] = np.mean(X_train[index_k], axis=0)
+    # 収束判定
+    if np.allclose(prev_centers, centers):
+        break
+```
 ## Chapter6 SVM
 - 教師あり学習。2値分類問題に適用。
 ### ハードSVM
