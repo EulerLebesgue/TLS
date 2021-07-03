@@ -300,6 +300,35 @@ for _ in range(iter_max):
 - 多項式カーネル
 - 指数カーネル
 - 線形カーネル(単なる内積)
+### 実装
+学習は最急勾配法で学習を行う。方法によってそれまでの処理は異なるが根本は同じ
+```
+for _ in range(n_iter):
+    grad = 1 - H.dot(a)
+    a += eta1 * grad
+    a -= eta2 * a.dot(t) * t
+    a = np.where(a > 0, a, 0)
+```
+予測部分も大きくは変わらない
+```
+サポートベクター(a=0)以外は予測に影響を与えないので取り除く。
+index = a > 1e-6
+support_vectors = X_train[index]
+support_vector_t = t[index]
+support_vector_a = a[index]
 
+term2 = K[index][:, index].dot(support_vector_a * support_vector_t)
+b = (support_vector_t - term2).mean()
+
+xx0, xx1 = np.meshgrid(np.linspace(-5, 5, 100), np.linspace(-5, 5, 100))
+xx = np.array([xx0, xx1]).reshape(2, -1).T
+
+X_test = xx
+y_project = np.ones(len(X_test)) * b
+for i in range(len(X_test)):
+    for a, sv_t, sv in zip(support_vector_a, support_vector_t, support_vectors):
+        y_project[i] += a * sv_t * sv.dot(X_test[i])
+y_pred = np.sign(y_project)
+````
 
 
