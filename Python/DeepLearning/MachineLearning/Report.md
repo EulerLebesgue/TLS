@@ -90,9 +90,76 @@ clf = KernelRidge(alpha=0.0002, kernel='polynomial',degree=10)
 通常の勾配降下法では1回の計算で、パラメータを１回更新する。しかしそれでは計算がメモリに乗らない。そのため確率的勾配降下法を用いる。
 ### モデル評価
 - 再現率(Recall)：本当にPositiveの(TP+FN)からモデルがPositive(TP)と判定したものの割合(TP/TP+FN)
-- - Positiveの抜け漏れを少なくしたい。（病気の検査指標など）
-- 再現率(Recall)：本当にPositiveの(TP+FN)からモデルがPositive(TP)と判定したものの割合(TP/TP+FN)
-- - Positiveの抜け漏れを少なくしたい。（病気の検査指標など）
+- - Positiveの抜け漏れを少なくしたい。（病気の検査指標など、陽性の患者は絶対に逃したくないなど）
+- 適合率(Precision)：Positiveと予測したもの(TP+FP)から本当にPositive(TP)なものの割合(TP/TP+FP)
+- - 見逃しを許容しても、Positiveの推定の正確さを上げたい（スパムメールなど、異常と判断されたものは確実に異常であってほしい）
+- F値：RecallとPrecisionの調和平均。現場では3つを見比べることもある。
+### 実装
+覚えておくと使うときに便利な機能
+```
+#matplotlibをinlineで表示するためのおまじない (plt.show()しなくていい)
+%matplotlib inline
+```
+1. 前処理。使わないデータの削除と欠損値の補完
+```
+### いらないデータを削除してnullの列を表示
+titanic_df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+titanic_df[titanic_df.isnull().any(1)].head(10)
+### 新しい列を作成して、欠損値を中央値で補完
+titanic_df['AgeFill'] = titanic_df['Age'].fillna(titanic_df['Age'].mean())
+```
+2. モデルの学習
+sklearnからロジスティック回帰のモジュールをインポート。その後ロジスティック回帰モデルのインスタンスを生成して使用。  
+APIなので、書き方が同じ。とても便利
+```
+from sklearn.linear_model import LogisticRegression
+model=LogisticRegression()
+model.fit(data1, label1)
+```
+3. 学習からわかること  
+もちろん予測した結果はわかるが、`predict_proba()`で実際の確率が出力される。
+これを使うと判断した確率がわかる。(運賃が62の人だとモデルが生と判断しても、確率は五分五分)
+```
+model.predict([[62]])
+model.predict_proba([[62]])
+```
+array([[0.49978123, 0.50021877]])
+4. あらたな特徴量を追加
+性別を2値に分類して、階級を足し合わせる。(階級とレディーファースト)
+```
+titanic_df['Gender'] = titanic_df['Sex'].map({'female': 0, 'male': 1}).astype(int)
+titanic_df['Pclass_Gender'] = titanic_df['Pclass'] + titanic_df['Gender']
+```
+上記の特徴量はうまく傾向を表しているので、よい特徴量
+
+5. 交差検証と精度評価
+テストデータ：訓練データを8:2に分割する。
+```
+traindata1, testdata1, trainlabel1, testlabel1 = train_test_split(data1, label1, test_size=0.2)
+```
+下記で回帰の結果を出力できる
+```
+metrics.classification_report(testlabel1, predictor_eval1))
+```
+※出力はマークダウンで加工している。
+|item|precision|recall|f1-score|support|
+|-|-|-|-|-|
+|0|0.65|0.98|0.78|105|
+|1|0.90|0.26|0.40|74|
+|accuracy|||0.68|179|
+|macro avg|0.78|0.62|0.59|179|
+|weighted avg|0.76|0.68|0.62|179|
+
+運賃と年齢から予測したもの。
+運賃だけよりはましかなという感じ。生存のリコールが低く、生存の推定に漏れが多い。
+
+下記で混合行列を出力可能。
+```
+from sklearn.metrics import confusion_matrix
+confusion_matrix1=confusion_matrix(testlabel1, predictor_eval1)
+```
+
+
 ## Chapter4 主成分分析
 多変量データの持つ構造をより少数個の指標に圧縮することが目標(次元圧縮)
 データの散らばりが残る(分散が最大化する)ような散らばり方を選択する。
