@@ -81,11 +81,18 @@ W = np.random.randint(5, size=(4,3))
 ソフトマックス関数について
 - 出力は配列。np.exp(x)はスカラーではなくベクトル値。np.sum(np.exp(x))は総和なのでスカラー
 交差エントロピーについて
-- 真数部分が０とならないように微小な値を加えておく。  
+- 真数部分が０とならないように微小な値を加えておく。
+`y[np.arange(batch_size), d] + 1e-7)` 
 - 総和の形式だが、d_iは正解のラベルのみ１・その他は０の場合(One-Hot-Vector)、実質的に返すのは正解についての対数値。
 
-###
-実装箇所
+### 実装箇所
+平均二乗誤差(MSE)
+```
+def mean_squared_error(d, y):
+    return np.mean(np.square(d - y)) / 2
+```
+
+ソフトマックス関数
 ```
 def softmax(x):
     if x.ndim == 2:
@@ -95,8 +102,22 @@ def softmax(x):
         return y.T
 
     x = x - np.max(x) # オーバーフロー対策
+    return np.exp(x) / np.sum(np.exp(x))
 ```
-
+交差エントロピー:本質的な出力は、return文の箇所
+```
+def cross_entropy_error(d, y):
+    if y.ndim == 1:
+        d = d.reshape(1, d.size)
+        y = y.reshape(1, y.size)
+        
+    # 教師データがone-hot-vectorの場合、正解ラベルのインデックスに変換
+    if d.size == y.size:
+        d = d.argmax(axis=1)
+             
+    batch_size = y.shape[0]
+    return -np.sum(np.log(y[np.arange(batch_size), d] + 1e-7)) / batch_size
+```
 ## Section4 勾配降下法
 深層学習の目的は、精度を高めるパラメータを求めること。そのため結果から、誤差の分だけパラメータを修正する。  
 学習の際には学習率によって、学習の精度が大きく変わる。
@@ -105,25 +126,86 @@ def softmax(x):
 入力 - 出力 - 誤差の計算 - パラメータの更新という一つの流れをエポックという。
 ### 勾配降下法
 全サンプルの平均誤差を計算する。
+### 確認テスト
+コードの記載箇所
+- 勾配の更新式
+`network[key]  -= learning_rate * grad[key]`
+- 微分の計算式
+`grad = backward(x, d, z1, y)`
+これは一気に更新を行っている。  
+この中でも特に微分の関数の計算式は  
+`delta2 = functions.d_mean_squared_error(d, y)`
+### 学習率についてコードで遊んで確認
+学習率を0.0001,0.5とかにすると全く誤差が収束しない。  
 ### 確率的勾配降下法
 ランダムに抽出したサンプルの誤差を計算。利点は次の三点
 - データが冗長な場合の計算コストの削減
 - 鞍点への収束を回避しやすい
 - オンライン学習が可能。
+### 実装箇所
+データセットからランダムにデータを抽出している。
+```
+random_datasets = np.random.choice(data_sets, epoch)
+```
 ### ミニバッチ勾配降下法
 ランダムに分割したデータの集合に属するサンプルの平均誤差。利点は次  
 確率的勾配降下法のメリットを損なわず、計算機の計算資源を有効利用できる。このため、CPUを利用したスレッド並列化やGPUを利用したSIMD並列化
 
 ### 確認テスト(オンライン学習とは)
 データをすべて学習させるのではなく、その都度学習させる。そのため、すべてのデータをそろえる必要がない。
+### 数値微分の実装箇所
+本質的な箇所は`grad[idx] = (fxh1 - fxh2) / (2 * h)`微分という概念操作を行うことができないので、近似的に計算する。
+```
+def numerical_gradient(f, x):
+    h = 1e-4
+    grad = np.zeros_like(x)
+
+    for idx in range(x.size):
+        tmp_val = x[idx]
+        # f(x + h)の計算
+        x[idx] = tmp_val + h
+        fxh1 = f(x)
+
+        # f(x - h)の計算
+        x[idx] = tmp_val - h
+        fxh2 = f(x)
+
+        grad[idx] = (fxh1 - fxh2) / (2 * h)
+        # 値を元に戻す
+        x[idx] = tmp_val
+
+    return grad
+```
 ## Section5 誤差逆伝搬
 ## 誤差の計算
 数値微分(パラメータに微小な値の加えたものと引いたものの差をとって、微小量の２倍で割る。)を用いる。  
-しかし入力層から出力層に向けての計算をすべての層の重みに対して行うので、計算量が多くなる。(純伝搬)  
+しかし入力層から出力層に向けての計算をすべての層の重みに対して行うので、計算量が多くなる。(順伝搬)  
 そのため、誤差逆伝搬法を使う。
 ## 誤差逆伝搬とは
 産出された誤差を、出力層側から順に微分し、入力層に向かって伝搬していく。各パラメータの微分値を解析的に計算する。そのため、不要な再帰計算を避けることができる。  
-実現するために微分の連鎖律を用いる。
+実現するために微分の連鎖律を用いる。  
+### 確認テスト(再帰的な処理を避けている箇所。)
+```
+delta2 = functions.d_mean_squared_error(d, y)
+```
+### 実装(誤差逆伝搬の処理)
+出力層の活性化関数が1である少し特殊な状況であることに注意
+```
+# 誤差関数の偏微分
+    delta2 = functions.d_mean_squared_error(d, y)
+# b2の勾配更新量(bが定数項なので微分すると1となるのでシンプル)
+    grad['b2'] = np.sum(delta2, axis=0)
+# W2の勾配更新量(中間層の入力を重みで微分すると入力そのもの)
+    grad['W2'] = np.dot(z1.T, delta2)
+# いままでの更新と中間層の活性化関数の微分の連鎖律
+    delta1 = np.dot(delta2, W2.T) * functions.d_relu(z1)
+    delta1 = delta1[np.newaxis, :]
+# b1の勾配更新量
+    grad['b1'] = np.sum(delta1, axis=0)
+    x = x[np.newaxis, :]
+# W1の勾配更新量(中間層の入力を重みで微分すると入力そのもの)
+    grad['W1'] = np.dot(x.T, delta1)
+ ```
 ### 計算速度
 処理速度と値段は次の関係。CPU < GPU <FPGA < ASIC(TPU)TPUはクラウドのものを間借りする。
 ### 入力層の設計
