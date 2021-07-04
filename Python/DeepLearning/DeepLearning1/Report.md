@@ -226,30 +226,52 @@ delta2 = functions.d_mean_squared_error(d, y)
 ## Section1 勾配消失問題
 誤差逆伝搬法が階層に進んでいくにつれて、勾配がどんどん緩やかになる。そのため学習によるパラメータ更新が進まなくなる。  
 学習しても正解率が上がらない、連鎖律で伝わる結果が0-1の間をとるため、積をとると値が小さくなる。
+
+
 ### 対策1　活性化関数の工夫
 - ReLu関数：0以上の時、y=x,0未満の場合は0を返す関数。勾配消失問題およびスパース化に貢献する。
 - - この関数により、重み更新に貢献しない重みの更新を行わない。
+### 実装
+活性化関数がシグモイド関数だと学習がうまくいかない。ReLuだとうまくいっている。過学習も起きてなさそう。
 ### 対策2　初期値の設定方法
 重みの初期値は乱数によって設定する。
-- Xavierの初期値：正規分布をとった後、前のlayerのノードの平方根で割る。S字カーブの活性化関数に対して有効
-np.randam.rand(input_layer_size,hidden_layer_size) / np.sqrt(input_layer_size)  
+#### Xavierの初期値
+正規分布をとった後、前のlayerのノードの平方根で割る。S字カーブの活性化関数に対して有効
+実装例
+```
+    network['W1'] = np.random.randn(input_layer_size, hidden_layer_1_size) / (np.sqrt(input_layer_size))
+    network['W2'] = np.random.randn(hidden_layer_1_size, hidden_layer_2_size) / (np.sqrt(hidden_layer_1_size))
+    network['W3'] = np.random.randn(hidden_layer_2_size, output_layer_size) / (np.sqrt(hidden_layer_2_size))
+```
 np.random.rand()は標準正規分布に沿った乱数を返す。変数の指定で出力される行列のサイズを決定する。
-
-比較
+### 実装結果
+活性化関数がシグモイド関数でもある程度成果が出る。ReLuほどではない。  
+ReLuに対してこの初期値を使うと、逆に精度が落ちる。
+#### 比較
 - 正規分布による初期化：出力値が0または1に集中する。勾配消失が起きやすい
-- 正規分布の標準偏差を極端(0.01)に小さくする。出力地が0.5に集中する。表現が失われ学習できていない。
-- Heの初期値：正規分布の重みに2/ｎの平方根をかける。nは前層のノード数。ReLu関数に対して有効
-np.randam.rand(input_layer_size,hidden_layer_size) / np.sqrt(input_layer_size)* np.sqrt(2)
-比較
+- 正規分布の標準偏差を極端(0.01)に小さくする。出力値が0.5に集中する。表現が失われ学習できていない。
+#### Heの初期値
+正規分布の重みに2/ｎの平方根をかける。nは前層のノード数。ReLu関数に対して有効
+実装例
+```
+    network['W1'] = np.random.randn(input_layer_size, hidden_layer_1_size) / np.sqrt(input_layer_size) * np.sqrt(2)
+    network['W2'] = np.random.randn(hidden_layer_1_size, hidden_layer_2_size) / np.sqrt(hidden_layer_1_size) * np.sqrt(2)
+    network['W3'] = np.random.randn(hidden_layer_2_size, output_layer_size) / np.sqrt(hidden_layer_2_size) * np.sqrt(2)
+```
+#### 比較
 - 正規分布による初期化：出力値が0に集中する。
 - 正規分布の標準偏差を極端(0.01)に小さくする。出力値が0に集中する。
-
+### 実装結果
+ReLuに対してはかなり早い段階から学習が収束する。シグモイドに対しては一定以上の精度が出ない
 ### 対策3　バッチ正規化
 ミニバッチ単位で、入力値のデータの偏りを抑制する手法  
 ※ミニバッチサイズは処理能力で目安がある。GPUは64枚まで、TPUは256枚まで  
 統計の標準的な正規化(入力から平均を引いた後、標準偏差に微小値を加えたもので割る。)をおこなって、パラメータを移動させる。
 ### 確認テスト
-シグモイド関数は勾配消失問題を起こしやすい。(導関数の最大値が0.25(x=0)。シグモイド関数の導関数はシグモイド関数の2次式なので最大値を容易に求められる。)
+### 確認テスト
+シグモイド関数f(x)=1/（1+exp(-x))より、f(0)= 0.5  
+f'(x) = f(x)(1-f(x))よりf'(0) = 0.25  
+ここで、f'(x) = -(f(x)-0.5)^2 + 1/4、f(x)が単調増加関数、0<f(x)<1よりf'(0)が最大値。よって逆伝搬の時最大値が0.25のため、積をとると限りなく0に近づいていく。
 ### 確認テスト
 重みをすべて0(同じ値に設定する)と重みの値が均一に更新される。多数の重みをもつ意味がない。
 
