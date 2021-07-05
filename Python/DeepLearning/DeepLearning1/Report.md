@@ -412,8 +412,41 @@ return x * self.mask
 フィルターが一度に動く量を決める。
 ### チャンネル
 フィルターの数を決定する要素。
+### 実装演習
+畳み込み層の計算
+```
+self.layers['Conv1'] = layers.Convolution(self.params['W1'], self.params['b1'], conv_param['stride'], conv_param['pad'])
+self.layers['Relu1'] = layers.Relu()
+self.layers['Pool1'] = layers.Pooling(pool_h=2, pool_w=2, stride=2)
+self.layers['Affine1'] = layers.Affine(self.params['W2'], self.params['b2'])
+self.layers['Relu2'] = layers.Relu()
+self.layers['Affine2'] = layers.Affine(self.params['W3'], self.params['b3'])
+```
+高速化の工夫  
+im2col
+```
+# 軸を取り換えて、フィルターで読み取った範囲を出力する
+col = col.transpose(0, 4, 5, 1, 2, 3)
+# 上記の内容を一列に並べる
+col = col.reshape(N * out_h * out_w, -1)
+```
+col2im:元の配列に戻す  
+```
+col = col.reshape(N, out_h, out_w, C, filter_h, filter_w).transpose(0, 3, 4, 5, 1, 2) # (N, filter_h, filter_w, out_h, out_w, C)
+```
 ### プーリング層
 フィルター内で特定の操作を行い出力する。フィルター内の出力を取得(MaxPooling)、平均値を取得(AvgPooling)
+実装確認。ここでもプーリングの演算を高速化するために、行列の変換を行ったのち、最大値をとる
+```
+ col = im2col(x, self.pool_h, self.pool_w, self.stride, self.pad)
+ # プーリングのサイズに合わせてリサイズ
+ col = col.reshape(-1, self.pool_h*self.pool_w)
+        
+ #maxプーリング
+ arg_max = np.argmax(col, axis=1)
+ out = np.max(col, axis=1)
+ out = out.reshape(N, out_h, out_w, C).transpose(0, 3, 1, 2)
+```
 ## Section5 最新のCNN
 ### AlexNet
 5層の畳み込み層およびプーリング層など、それに続く3層の全結合層から構成される。  
@@ -424,3 +457,6 @@ return x * self.mask
 サイズ4096の全結合層の出力に過学習を防ぐためドロップアウトを使用している。
 ### 確認テスト
 フィルターサイズの畳み込んだ際の出力は等差数列の公式を持ちいることで暗記をしなくてよい。
+### AlexNetの有用性について
+- 2012 年前までの画像分類では人が特徴量を設計していた。いかに特徴量を決めるかが大切だった。
+- それが、2012年にAlexNetにより、十分なデータが存在すれば、学習によって機会が自動的に特徴量を抽出することができるようになった。
