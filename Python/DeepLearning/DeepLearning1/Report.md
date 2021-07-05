@@ -268,28 +268,82 @@ ReLuに対してはかなり早い段階から学習が収束する。シグモ�
 ※ミニバッチサイズは処理能力で目安がある。GPUは64枚まで、TPUは256枚まで  
 統計の標準的な正規化(入力から平均を引いた後、標準偏差に微小値を加えたもので割る。)をおこなって、パラメータを移動させる。
 ### 確認テスト
-### 確認テスト
 シグモイド関数f(x)=1/（1+exp(-x))より、f(0)= 0.5  
 f'(x) = f(x)(1-f(x))よりf'(0) = 0.25  
 ここで、f'(x) = -(f(x)-0.5)^2 + 1/4、f(x)が単調増加関数、0<f(x)<1よりf'(0)が最大値。よって逆伝搬の時最大値が0.25のため、積をとると限りなく0に近づいていく。
 ### 確認テスト
 重みをすべて0(同じ値に設定する)と重みの値が均一に更新される。多数の重みをもつ意味がない。
-
+### 例題チャレンジ
+ミニバッチサイズで処理を進める実装。バッチサイズ分だけずらしてスライシングする。
+```
+for epoch in range(n_epoch):
+    shuffle_idx = np.random.permutation(N)
+    for i in range(0,N,batch_size):
+        i_end = i + batch_size
+        batch_x,batch_t = data_x[i:i_end],data_t[i:i_end]
+```
 ## Section2 学習率最適化手法
 初期の学習率を大きく設定し、徐々に学習率を小さくしていく。(学習率を可変させる。)
 ### モメンタム
 前回の重みに慣性量をかけて値から、学習量と誤差の微分値をかけたものを引き、それを現在の重みに加える。  
-大域的局所解に到達しやすい。極小解に捕らわれると一気に学習が進む。株価の移動平均に近い動きをする。
+大域的局所解に到達しやすい。極小解に捕らわれると一気に学習が進む。株価の移動平均に近い動きをする。  
+実装箇所
+```
+for key in params.keys():
+    self.v[key] = self.momentum * self.v[key] - self.learning_rate * grad[key] 
+    params[key] += self.v[key]
+```
 ### AdaGrant
 変数に誤差関数の微分値の二乗を保持するものを用意して、それを用いて学習率を更新する。  
 勾配の緩やかな斜面に対して、最適値に近づける。  
-学習率が徐々に小さくなるので、鞍点問題を引き起こすことがある。
+学習率が徐々に小さくなるので、鞍点問題を引き起こすことがある。  
+実装箇所
+```
+for key in params.keys():
+    self.h[key] += grad[key] * grad[key]
+    params[key] -= self.learning_rate * grad[key] / (np.sqrt(self.h[key]) + 1e-7)
+```
 ### RMSProp
 AdaGrantの式に回の誤差の二乗と、前回までの勾配情報をどの程度使用するかを変える。  
 局所的最適解にはならず、大域的最適解となる。  
-ハイパーパラメータの調整が必要な場合が少ない。
+ハイパーパラメータの調整が必要な場合が少ない。  
+実装箇所
+```
+for key in params.keys():
+    self.h[key] *= self.decay_rate
+    self.h[key] += (1 - self.decay_rate) * grad[key] * grad[key]
+    params[key] -= self.learning_rate * grad[key] / (np.sqrt(self.h[key]) + 1e-7)
+```
 ### Adam
-モメンタムとRMSPropのいいとこどりをしたような手法。
+モメンタムとRMSPropのいいとこどりをしたような手法。  
+実装箇所
+```
+def update(self, params, grad):
+    if self.m is None:
+        self.m, self.v = {}, {}
+        for key, val in params.items():
+            self.m[key] = np.zeros_like(val)
+            self.v[key] = np.zeros_like(val)
+    self.iter += 1
+    # lr_t = e * sqrt(1-b_2)/(1-b_1)
+    
+    lr_t  = self.learning_rate * np.sqrt(1.0 - self.beta2 ** self.iter) / (1.0 - self.beta1 ** self.iter)         
+        
+    for key in params.keys():
+        # m_t+1 = m_t + (1-b_1) * (g - m_t )
+        self.m[key] += (1 - self.beta1) * (grad[key] - self.m[key])
+        # v_t+1 = v_t + (1-b_2) * (g^2 - v_t )
+        self.v[key] += (1 - self.beta2) * (grad[key] ** 2 - self.v[key])
+        # w_t+1 = w - lr_t * m_t+1 / sqrt(v_t+1) + f
+        params[key] -= lr_t * self.m[key] / (np.sqrt(self.v[key]) + 1e-7
+```
+### 実装演習
+SDGは明らかに未学習。それ以外は学習できている。今回はRMSPropとAdamだとRMSPropの方がよく見える
+#### バッチ正規化を行うとどう変わるか？
+- SDGでもバッチ正規化だけで7割程度の正答率が得られる。
+### 活性化関数・初期値の設定
+- ReLu,Heの組み合わせでSDGでも8割強の正解率が出る。バッチ正規化をしてもしなくても同じくらいの精度。落ち着くのが少し早いか？
+- RMSPropだとほぼ満点に近い。しかも最初から正答率が高い。
 ## Section3 過学習
 ### 過学習とは
 テスト誤差と訓練誤差とで学習曲線が乖離すること。要因としては
@@ -303,14 +357,38 @@ AdaGrantの式に回の誤差の二乗と、前回までの勾配情報をどの
 - 過学習は一部の重みが極端に大きくなることで、特定の入力に過剰に反応してしまうことによる。
 - そのため、正則化項（どちらかというと条件か？）を加算することで、重みを抑制する。
 ### L1正則化(Lasso正則)
-罰則項としてL1ノルムを採用している。(ひし形)そのため、最適解を得た場合、重みが0となる箇所があることがある。(スパース推定)
+罰則項としてL1ノルムを採用している。(ひし形)そのため、最適解を得た場合、重みが0となる箇所があることがある。(スパース推定)  
+実装箇所
+```
+#誤差関数にL1ノルム(絶対値の総和)を加える
+weight_decay += weight_decay_lambda * np.sum(np.abs(network.params['W' + str(idx)]))
+loss = network.loss(x_batch, d_batch) + weight_decay
+```
 ### L2正則化
-罰則項としてL1ノルムを採用している。(円)最適解を得た場合、重みが0とならない縮小推定。(スパース推定)
+罰則項としてL1ノルムを採用している。(円)最適解を得た場合、重みが0とならない縮小推定。  
+実装箇所
+```
+#誤差関数にL2ノルム(2乗の総和の平方根)を加える
+weight_decay += 0.5 * weight_decay_lambda * np.sqrt(np.sum(network.params['W' + str(idx)] ** 2))
+loss = network.loss(x_batch, d_batch) + weight_decay
+```
 ### 例題チャレンジ
 L2正則化で勾配更新(微分)を行う。その結果、係数が吸収されてgrad += rate * paramとなる。　　
 L1正則化で勾配更新(微分)を行う。結果は定数(-1,0,1)となるのでnumpyのsign(param)(符号関数)を用いる。
 ### ドロップアウト
-ランダムにノードを削除して学習させること。そのため、データ量を変化させずに、異なるモデルを学習させていると解釈できる。
+ランダムにノードを削除して学習させること。そのため、データ量を変化させずに、異なるモデルを学習させていると解釈できる。  
+実装箇所
+```
+### dropout_ratioを超える重みはdropout_ratioと重みの積をとる。dropout_ratioの値が小さければ過剰に反応する。
+self.mask = np.random.rand(*x.shape) > self.dropout_ratio
+return x * self.mask
+```
+### 実装演習
+- L1ノルムだけだと、地震計みたいな挙動となる。学習ができていない。
+- weigth_decay_lambda：正則化の強さを変えると過学習が抑えられない、または未学習になる。意外と些細な変化で結果が変わるので調整が難しい。解析的には計算できないのか？
+- dropout_ratioを小さくすると、テストの正答率が上がる。ほとんどの重みが消えてそうだが。大きくすると未学習
+- optimaizerがadamだとしても、適切に決めないと学習がうまくいかない
+
 ## Section4 畳み込みニューラルネットワークの概念
 画像処理によく用いられるネットワーク。次元的なつながり(データが近い箇所で入力が似ている)があるものなら応用が利くもの。
 - 単一チャンネル:各次元の入力がスカラーのもの(例(2次元)：音声データのフーリエ変換(時刻、周波数、強度))
