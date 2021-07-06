@@ -27,6 +27,8 @@ y[:,t] = functions.sigmoid(np.dot(z[:,t+1].reshape(1, -1), W_out))
 ### 実装箇所
 
 ```
+### deltaが前の時間とのつながりを持つ
+delta[:,t] = (np.dot(delta[:,t+1].T, W.T) + np.dot(delta_out[:,t].T, W_out.T)) * functions.d_sigmoid(u[:,t+1])
 ### 入力値の重みの更新
 W_in_grad += np.dot(X.T, delta[:,t].reshape(1,-1))
 ### 過去の入力への重みの更新
@@ -60,10 +62,16 @@ CECが完全になくなった形状。ゲートもリセットゲートと更�
 リセットゲート：隠れ層でどのように状態を保持するかを決める。
 更新ゲート：前回の記憶と今回の記憶の使い方を決める。
 ### 確認テスト
-CECの問題点：学習能力がない。記憶しかない。 GRAにはCECが存在しない、
+CECの問題点：学習能力がない。記憶しかない。 GRAにはCECが存在しない.
+### 実装演習
+Tensorflowを用いると、RNNの実装箇所は1行で終わる
+```
+cell = tf.nn.rnn_cell.BasicRNNCell(self.hidden_layer_size)
+```
 ## Section4 双方向RNN
 過去の情報だけでなく、未来の情報を加味することで精度を向上させるモデル。  
 過去からの入力と現在の入力への層および未来からの入力と現在の入力の層を合わせたもの。  
+### 演習チャレンジ
 情報をつぶさずに考慮するには、concateneteを用いる。  
 concateneteはaxisの指定で結合方法はが異なる。axis=0は一次元配列。axis=1では同じ要素で二次元の配列を作るイメージ。  
 順方向と逆方向の伝搬情報を合わせる場合、t時間の情報をペアとして持つ必要があるので、axis = 1  
@@ -112,7 +120,14 @@ VAEの潜在変数の概念を導入。HREDよりも表現力の高いモデル�
 ## Section7 Attention Machinism
 seq2seqでは長い文章には対応できない。どんな語数でも固定長ベクトルで表現する必要がある。  
 そのため、一文の中で大事な単語を見分けて隠れ層として学習する必要がある。  
-（例えば、文章中の冠詞は同紙に比べて重要度が低いなど。 ）
+（例えば、文章中の冠詞は同紙に比べて重要度が低いなど。 ）  
+そのためAttention Machinismが考えられた。
+### Attention(注意機構)とは
+query(検索クエリ)に一致するkeyを探し、valueを取り出す。辞書オブジェクト機能を持つ  
+文が長くなっても翻訳精度が落ちない。 2種類ある
+- Source Target Attention:情報とソースが分かれている。
+- Self-Attentino：どの情報に着目するかを入力のみで決定する。CNNとよく似ているが、ウインドウサイズが文のサイズのコンボリューション。
+
 
 ### 確認テスト
 - RNN：時系列データを扱うのに適したNN  
@@ -225,29 +240,107 @@ bit数の拡張は、指数部と基数部を同じ割合で拡張するわけ�
 閾値が特定の値より小さい重みを削除する。その結果最終結果に寄与しない重みも削除する。  
 効果は想像以上に小さい。全体の94%のパラメータを削除しても、精度は90%程度となる！
 
-## Section4 Transformer
+## Section4 応用技術
+### MobileNet
+- 画像認識ネットワーク
+- 通常の畳み込み計算量(パディング1,ストライド1の場合、計算量は(出力のサイズ)×(カーネルマップ)×(フィルターサイズ))をDepthwise ConvolutionとPointwise Convolutionで軽量化したもの。メモリ量も14M程度まで削減できる。
+#### Depthwise Convolution
+- フィルタ数が1
+- カーネルの枚数が1(入力をまとめて畳み込みをしない)
+- 出力チャンネルは入力と同じ
+- 計算量は(出力マップ)×(カーネルサイズ)
+#### Pointwise Convolution
+- カーネルサイズを1 × 1で畳み込み
+- 任意のチャンネルを出力する。
+- 計算量は(カーネルチャンネル)×(フィルター数)×(出力マップ)
+### Dense Net
+- 画像認識モデル。
+- Denseブロックを畳み込み後に追加する。
+#### DenseBlock
+前のレイヤーを足し合わせて出力していく
+Batch正規化　Relu関数　畳み込み3×3
+出力チャンネルが畳み込みのチャンネル分増えていく。このチャンネルは成長率と呼ばれるハイパーパラメータ
+#### Transition Layer
+畳み込みとプーリングの処理を行ってチャンネル数をもとに戻す。
+#### ResNetとの違い
+- DenseNetでは前方からの出力をすべて後方へ伝える。ResNetでは前1層の入力のみ後方へ伝える。
+### Batch Norm
+ミニバッチに含まれるサンプルの同一チャンネルが同一正規分布に従うように正規化。  
+このバッチサイズが小さいと学習結果が収束しない。このバッチサイズはデバイス性能に依存する。  
+#### Layer Norm
+1つの画像に対してpixelsが同一分布に従うように正規化
+#### Instance Norm
+1つの画像の同一Channelのみ分布に従うように正規化
+### WaveNet
+- 音声生成モデル。畳み込みで処理ができる。通常は近接したリンクをつける。WavenetはDilated Convolution
+
+### 確認問題 Deconvolution(逆畳み込み)
+情報量が増える畳み込み。画像の解像度を上げるために使う
+
+## Section5 Transformer
 ニューラル機械翻訳の弱点は長さに弱い。固定長ベクトルに圧縮するため
-### Attentino(注意機構)
-query(検索クエリ)に一致するkeyを探し、valueを取り出す。辞書オブジェクト機能を持つ  
-文鳥が長くなっても翻訳精度が落ちない。 2種類ある
-- Source Target Attention:情報とソースが分かれている。
-- Self-Attentino：どの情報に着目するかを入力のみで決定する。CNNとよく似ているが、ウインドウサイズが文のサイズのコンボリューション。
 ### Transformer
 RNNを用いずに同精度のものをAttentionのみで実現。  
 1. RNNを用いないため、単語の位置情報を付加
 2. Self-Attentionをかける。(Dot Product Attention)
 3. 単語の位置ごとに独立処理する全結合
 4. 未来の単語を見ないようマスク
-### Position-Wise Feed-Forward Networks
-普通に全結合を行うと、単語の位置情報を破壊するため、破壊しないように順伝搬を行う。
 
 ### Scaled dot product attention
 QとKのドット積をとってきたあと、Mask(パッドなどの無視していい項に対して用いる)してSoftMAXとVの積をとる
-
 ### Multi-Head Attention
 8個のScaled Dot-Product Attentionの出力を合わせて、それぞれのヘッドが異なる種類の情報を収集
+### 実装
+1. Position Encoding
+位置情報をsinカーブとcosカーブにより取得する
 
-## Section5 物体検知・セグメンテーション
+```
+    position_enc[1:, 0::2] = np.sin(position_enc[1:, 0::2])  # dim 2i
+    position_enc[1:, 1::2] = np.cos(position_enc[1:, 1::2]) 
+```
+2. Multihead Attention
+通常一般的な翻訳モデルで用いられるAttentionはソース・ターゲット注意機構。Transformerでは加えて自己注意機構を用いるのが特徴  
+これにより、局所的な位置しか参照できない畳み込み層に比べ、あらゆる位置の情報を参照できるため、精度が向上する。  
+```
+### 勾配が爆発しないようにスケーリングする。またバッチ毎の内積をとる。
+attn = torch.bmm(q, k.transpose(1, 2)) / self.temper  
+### attentionを向けたくない部分は無限大に飛ばすことでsoftmaxを0とする。
+attn.data.masked_fill_(attn_mask, -float('inf'))
+```
+ソースターゲット注意機構も自己注意機構も同じ構造。何を食わせるかで変わる
+```
+self.attention(q_s, k_s, v_s, attn_mask=attn_mask.repeat(n_head, 1, 1))
+
+### Decoderでの実装
+### 完全に構造が同じ
+self.slf_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
+self.enc_attn = MultiHeadAttention(n_head, d_model, d_k, d_v, dropout=dropout)
+
+### 入力だけ異なる
+dec_output, dec_slf_attn = self.slf_attn(dec_input, dec_input, dec_input, attn_mask=slf_attn_mask)
+dec_output, dec_enc_attn = self.enc_attn(dec_output, enc_output, enc_output, attn_mask=dec_enc_attn_mask)
+```
+3. Position-Wise Feed Forward Network
+普通に全結合を行うと、単語の位置情報を破壊するため、破壊しないように順伝搬を行う。
+```
+畳み込みとReLuを組み合わせるだけ
+output = self.relu(self.w_1(x.transpose(1, 2)))
+output = self.w_2(output).transpose(2, 1)
+output = self.dropout(output)
+return self.layer_norm(output + residual)
+```
+4. Masking
+Attentinonを向けないようにMaskする
+```
+_mask = get_attn_padding_mask(_seq_q, _seq_k)
+```
+Decoder側でSelf Attentionを行う際に、各時刻で未来の情報に対するAttentionを行わないようにするマスク
+```
+_mask = get_attn_subsequent_mask(_seq) 
+```
+出力としては、未来の時系列に対して1のフラグが立つ
+
+## Section6 物体検知・セグメンテーション
 ### 物体認識タスク
 タスクと出力内容の関係は下記。いままでの分類は画像の有無のみ、それ以降では物体位置および個々に興味を持つ。  
 - 分類(Classification)：画像に対してクラスラベル
@@ -333,39 +426,4 @@ VGG16の全結合層を畳み込み層とする。
 層が離れるにつれて、畳み込みのリンクを離していく→る受容野広い
 
 
-## 応用技術
-### MobileNet
-- 画像認識ネットワーク
-- 通常の畳み込み計算量(パディング1,ストライド1の場合、計算量は(出力のサイズ)×(カーネルマップ)×(フィルターサイズ))をDepthwise ConvolutionとPointwise Convolutionで軽量化したもの。メモリ量も14M程度まで削減できる。
-#### Depthwise Convolution
-- フィルタ数が1
-- カーネルの枚数が1(入力をまとめて畳み込みをしない)
-- 出力チャンネルは入力と同じ
-- 計算量は(出力マップ)×(カーネルサイズ)
-#### Pointwise Convolution
-- カーネルサイズを1 × 1で畳み込み
-- 任意のチャンネルを出力する。
-- 計算量は(カーネルチャンネル)×(フィルター数)×(出力マップ)
-### Dense Net
-- 画像認識モデル。
-- Denseブロックを畳み込み後に追加する。
-#### DenseBlock
-前のレイヤーを足し合わせて出力していく
-Batch正規化　Relu関数　畳み込み3×3
-出力チャンネルが畳み込みのチャンネル分増えていく。このチャンネルは成長率と呼ばれるハイパーパラメータ
-#### Transition Layer
-畳み込みとプーリングの処理を行ってチャンネル数をもとに戻す。
-#### ResNetとの違い
-- DenseNetでは前方からの出力をすべて後方へ伝える。ResNetでは前1層の入力のみ後方へ伝える。
-### Batch Norm
-ミニバッチに含まれるサンプルの同一チャンネルが同一正規分布に従うように正規化。  
-このバッチサイズが小さいと学習結果が収束しない。このバッチサイズはデバイス性能に依存する。  
-#### Layer Norm
-1つの画像に対してpixelsが同一分布に従うように正規化
-#### Instance Norm
-1つの画像の同一Channelのみ分布に従うように正規化
-### WaveNet
-- 音声生成モデル。畳み込みで処理ができる。通常は近接したリンクをつける。WavenetはDilated Convolution
 
-### 確認問題 Deconvolution(逆畳み込み)
-情報量が増える畳み込み。画像の解像度を上げるために使う
